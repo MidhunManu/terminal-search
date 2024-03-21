@@ -1,0 +1,38 @@
+#!/usr/bin/python3
+
+from bs4 import BeautifulSoup
+import subprocess
+import requests
+import sys
+import os
+
+
+def get_respone(query:str):
+    search_query = query.replace(" ", "+");
+    url = f"https://search.brave.com/search?q={search_query}&source=desktop"
+    return requests.get(url)
+
+def get_web_links(query:str):
+    soup = BeautifulSoup(get_respone(query).content, "html.parser");
+    data = soup.select("div.snippet.svelte-eejxak>a")
+    links = []
+    for i in data:
+        links.append(i.get("href"))
+    return links
+
+def list_links(query: str):
+    web_links = get_web_links(query)
+    try:
+        fzf_process = subprocess.Popen(['fzf'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+        selected_site, _ = fzf_process.communicate(input="\n".join(web_links))
+        selected_site = selected_site.strip()
+        if selected_site:
+            os.system(f"w3m '{selected_site}'")
+        else:
+            print("No site selected.")
+    except Exception as e:
+        print(f"Error selecting site with fzf: {e}")
+
+if __name__ == "__main__":
+    query = sys.argv[1]
+    list_links(query)
